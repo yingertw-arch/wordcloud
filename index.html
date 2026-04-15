@@ -235,6 +235,17 @@
   <input type="range" id="fontRange" min="12" max="90" value="42" />
   <div class="sep"></div>
 
+  <span class="label">回答次數</span>
+  <select class="ctrl-select" id="maxVotesSelect">
+    <option value="1">1 次</option>
+    <option value="2">2 次</option>
+    <option value="3">3 次</option>
+    <option value="5">5 次</option>
+    <option value="10">10 次</option>
+    <option value="0">不限</option>
+  </select>
+  <div class="sep"></div>
+
   <button class="btn btn-ghost"    id="btnEdit">✏️ 編輯主題</button>
   <button class="btn btn-green"    id="btnDownload">⬇️ 下載</button>
   <button class="btn btn-primary"  id="btnShare">📤 分享圖片</button>
@@ -344,7 +355,7 @@
 <!-- ══ SCRIPT ══ -->
 <script type="module">
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, push, remove, get }
+import { getDatabase, ref, onValue, push, remove, get, set }
                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // ── Firebase ───────────────────────────────────────────
@@ -482,12 +493,15 @@ document.getElementById("editInput").addEventListener("keydown", e => {
 });
 
 window.clearCloud = async function() {
-  await remove(ref(db, "words"));
+  await Promise.all([
+    remove(ref(db, "words")),
+    remove(ref(db, "voters")),   // 清除所有投票紀錄，讓學生可再次回答
+  ]);
   currentTheme = "";
   localStorage.removeItem("cloudTheme");
   closeModal("newModal");
   renderCloud();
-  toast("已清除所有詞語與主題");
+  toast("已清除所有詞語、主題與回答紀錄");
 };
 
 // ── Theme ──────────────────────────────────────────────
@@ -742,10 +756,30 @@ window.toast = function(msg, dur=2200) {
   toastTimer = setTimeout(()=>el.classList.remove("show"), dur);
 };
 
+// ── 回答次數設定 ────────────────────────────────────────
+const maxVotesSelect = document.getElementById("maxVotesSelect");
+
+// 從 Firebase 即時同步目前設定值到選單
+onValue(ref(db, "settings/maxVotes"), snap => {
+  const val = snap.exists() ? String(snap.val()) : "1";
+  maxVotesSelect.value = val;
+});
+
+// 教師更改選單 → 寫入 Firebase（學生端即時生效）
+maxVotesSelect.addEventListener("change", () => {
+  set(ref(db, "settings/maxVotes"), Number(maxVotesSelect.value));
+  const label = maxVotesSelect.options[maxVotesSelect.selectedIndex].text;
+  toast(`已設定：每人最多 ${label}`);
+});
+
 // ── Init ───────────────────────────────────────────────
 if (!localStorage.getItem("inputPageUrl")) {
   localStorage.setItem("inputPageUrl","https://yingertw-arch.github.io/wordcloud/input.html");
 }
+// 若 Firebase 尚無設定，預設為 1 次
+get(ref(db, "settings/maxVotes")).then(snap => {
+  if (!snap.exists()) set(ref(db, "settings/maxVotes"), 1);
+});
 refreshQR();
 renderCloud();
 window.addEventListener("resize", () => renderCloud());
