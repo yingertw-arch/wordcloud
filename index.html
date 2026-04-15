@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文字雲主控台</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-cloud@1.2.7/build/d3.layout.cloud.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --accent: #667eea;
+      --accent2: #764ba2;
+      --text: #e0e0e0;
+      --border: #2a2a4a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+      height: 100vh; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .topbar h1 { font-size: 1.1rem; color: #fff; margin-right: 4px; }
+    .sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+
+    .btn {
+      padding: 6px 14px; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      transition: all .18s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #5568d4; }
+    .btn-ghost {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #a93226; }
+    .btn-green { background: #27ae60; color: #fff; }
+    .btn-green:hover { background: #219a52; }
+
+    /* icon btn */
+    .ibtn {
+      width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); cursor: pointer;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .ibtn:hover { background: var(--border); }
+    .ibtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    select.ctrl-select {
+      background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 10px; font-size: 0.85rem; cursor: pointer;
+    }
+    input[type="range"] { width: 90px; accent-color: var(--accent); cursor: pointer; }
+
+    .label { font-size: 0.78rem; color: #888; }
+
+    /* ── MAIN AREA ── */
+    .main {
+      flex: 1; display: flex; overflow: hidden;
+    }
+
+    /* ── CLOUD STAGE ── */
+    #cloudStage {
+      flex: 1; position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #cloudCanvas {
+      width: 100%; height: 100%;
+    }
+    .word-count {
+      position: absolute; bottom: 12px; left: 16px;
+      font-size: 0.78rem; color: #666;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .rpanel {
+      width: 260px; background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      flex-shrink: 0; overflow-y: auto;
+    }
+    .rpanel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rpanel-section h3 {
+      font-size: 0.8rem; color: #888; text-transform: uppercase;
+      letter-spacing: .08em; margin-bottom: 10px;
+    }
+
+    /* QR */
+    #qrWrap {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    #qrcode canvas, #qrcode img { border-radius: 8px; }
+    .qr-url {
+      font-size: 0.72rem; color: #888; text-align: center;
+      word-break: break-all; max-width: 100%;
+    }
+
+    /* Color palette */
+    .palette { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pal-item {
+      width: 28px; height: 28px; border-radius: 6px;
+      cursor: pointer; border: 2px solid transparent;
+      transition: transform .15s, border-color .15s;
+    }
+    .pal-item:hover { transform: scale(1.15); }
+    .pal-item.active { border-color: #fff; transform: scale(1.15); }
+
+    /* Shape */
+    .shape-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .shape-btn {
+      flex: 1; min-width: 60px; padding: 7px 4px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); cursor: pointer;
+      font-size: 0.82rem; text-align: center; transition: all .15s;
+    }
+    .shape-btn:hover, .shape-btn.active {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+
+    /* Word list */
+    #wordList {
+      max-height: 220px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .word-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg); border-radius: 6px; padding: 5px 10px;
+      font-size: 0.85rem;
+    }
+    .word-item .wt { color: #aaa; font-size: 0.75rem; }
+    .word-item .del-w {
+      cursor: pointer; color: #555; font-size: 0.8rem;
+      transition: color .15s;
+    }
+    .word-item .del-w:hover { color: #e55; }
+
+    /* Modal overlay */
+    .modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999; display: none;
+    }
+    .modal {
+      background: var(--panel); border-radius: 16px;
+      padding: 28px 24px; width: 340px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .modal input {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 1rem;
+      outline: none; margin-bottom: 12px;
+    }
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Firebase config modal */
+    .config-field { margin-bottom: 10px; }
+    .config-field label { font-size: 0.8rem; color: #aaa; display: block; margin-bottom: 4px; }
+    .config-field input {
+      width: 100%; padding: 8px 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.85rem; outline: none;
+    }
+    .config-field input:focus { border-color: var(--accent); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 10px 22px; border-radius: 30px;
+      font-size: 0.9rem; pointer-events: none; opacity: 0;
+      transition: opacity .3s; z-index: 9999;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a3a5a; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ TOP BAR ══════════════ -->
+<div class="topbar">
+  <h1>☁️ 文字雲</h1>
+  <div class="sep"></div>
+
+  <!-- Zoom -->
+  <span class="label">縮放</span>
+  <button class="ibtn" id="btnZoomIn"  title="放大">＋</button>
+  <button class="ibtn" id="btnZoomOut" title="縮小">－</button>
+  <button class="ibtn" id="btnZoomRst" title="重置縮放">⊙</button>
+
+  <div class="sep"></div>
+
+  <!-- Scatter / Gather -->
+  <button class="ibtn" id="btnGather"  title="聚集">◎</button>
+  <button class="ibtn" id="btnScatter" title="散開">❋</button>
+
+  <div class="sep"></div>
+
+  <!-- Font size range -->
+  <span class="label">字級</span>
+  <input type="range" id="fontRange" min="12" max="90" value="42" />
+
+  <div class="sep"></div>
+
+  <!-- Actions -->
+  <button class="btn btn-ghost" id="btnEdit">✏️ 編輯</button>
+  <button class="btn btn-green" id="btnDownload">⬇️ 下載</button>
+  <button class="btn btn-primary" id="btnShare">🔗 分享</button>
+  <button class="btn btn-danger"  id="btnNew">🔄 新文字雲</button>
+
+  <!-- Firebase config -->
+  <button class="btn btn-ghost" id="btnFirebase" style="margin-left:auto">⚙️ Firebase</button>
+</div>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+
+  <!-- CLOUD STAGE -->
+  <div id="cloudStage">
+    <svg id="cloudCanvas"></svg>
+    <div class="word-count" id="wordCount">0 個詞</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="rpanel">
+
+    <!-- QR Code -->
+    <div class="rpanel-section">
+      <h3>📱 掃碼留言</h3>
+      <div id="qrWrap">
+        <div id="qrcode"></div>
+        <p class="qr-url" id="qrUrl">請先設定 Firebase</p>
+        <button class="btn btn-ghost" style="font-size:.8rem;padding:5px 12px" onclick="refreshQR()">重新產生</button>
+      </div>
+    </div>
+
+    <!-- Color -->
+    <div class="rpanel-section">
+      <h3>🎨 配色</h3>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <!-- Shape -->
+    <div class="rpanel-section">
+      <h3>🔷 形狀</h3>
+      <div class="shape-grid" id="shapeGrid"></div>
+    </div>
+
+    <!-- Word list -->
+    <div class="rpanel-section" style="flex:1">
+      <h3>📝 詞語列表</h3>
+      <div id="wordList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════ MODALS ══════ -->
+
+<!-- Edit modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h2>✏️ 新增詞語</h2>
+    <input type="text" id="editInput" placeholder="輸入詞語，Enter 加入" maxlength="20" />
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('editModal')">關閉</button>
+      <button class="btn btn-primary" onclick="addWordManual()">加入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase config modal -->
+<div class="modal-bg" id="firebaseModal">
+  <div class="modal" style="width:400px">
+    <h2>⚙️ Firebase 連線設定</h2>
+    <div class="config-field"><label>API Key</label><input id="fb_apiKey" placeholder="AIza…" type="password" autocomplete="off" /></div>
+    <div class="config-field"><label>Auth Domain</label><input id="fb_authDomain" placeholder="your-app.firebaseapp.com" /></div>
+    <div class="config-field"><label>Database URL</label><input id="fb_databaseURL" placeholder="https://your-app-default-rtdb.firebaseio.com" /></div>
+    <div class="config-field"><label>Project ID</label><input id="fb_projectId" placeholder="your-app" /></div>
+    <div class="config-field"><label>App ID</label><input id="fb_appId" placeholder="1:xxx:web:xxx" /></div>
+    <hr style="border-color:#2a2a4a;margin:12px 0"/>
+    <div class="config-field"><label>📱 留言頁網址（供 QR Code 使用）</label><input id="fb_inputUrl" placeholder="https://你的網域/input.html" /></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('firebaseModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFirebaseConfig()">連線</button>
+    </div>
+  </div>
+</div>
+
+<!-- New cloud confirm -->
+<div class="modal-bg" id="newModal">
+  <div class="modal">
+    <h2>🔄 開新文字雲？</h2>
+    <p style="color:#aaa;font-size:.9rem;margin-bottom:16px">這將清除所有現有詞語，無法復原。</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('newModal')">取消</button>
+      <button class="btn btn-danger" onclick="clearCloud()">確認清除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
+<script type="module">
+import { initializeApp }         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, remove, get }
+                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ── State ──────────────────────────────────────────────
+let words     = {};   // { firebaseKey: { text, count } }
+let db        = null;
+let unsubscribe = null;
+let scale     = 1;
+let scatterMode = false;
+let currentPalette = 0;
+let currentShape   = "circle";
+let fontScale = 42;
+
+const PALETTES = [
+  ["#667eea","#764ba2","#f093fb","#f5576c","#4facfe","#43e97b"],
+  ["#ff6b6b","#feca57","#48dbfb","#ff9ff3","#54a0ff","#1dd1a1"],
+  ["#fd79a8","#a29bfe","#74b9ff","#55efc4","#fdcb6e","#e17055"],
+  ["#2d3436","#636e72","#b2bec3","#dfe6e9","#74b9ff","#0984e3"],
+  ["#f8b500","#e84393","#00b0f0","#7ac143","#ff5f00","#8b00d4"],
+];
+const SHAPES = ["circle","square","diamond","heart","star","cloud"];
+const SHAPE_LABELS = {
+  circle:"● 圓形", square:"■ 方形", diamond:"◆ 菱形",
+  heart:"♥ 愛心", star:"★ 星形", cloud:"☁ 雲形"
+};
+
+// ── Firebase ───────────────────────────────────────────
+function initFirebase(cfg) {
+  try {
+    if (db) { if (unsubscribe) unsubscribe(); }
+    const app = initializeApp(cfg, "wordcloud-" + Date.now());
+    db = getDatabase(app);
+    listenWords();
+    localStorage.setItem("fbConfig", JSON.stringify(cfg));
+    refreshQR();
+    toast("✅ Firebase 連線成功！");
+    return true;
+  } catch(e) {
+    toast("❌ Firebase 設定錯誤：" + e.message, 4000);
+    return false;
+  }
+}
+
+function listenWords() {
+  const wordsRef = ref(db, "words");
+  onValue(wordsRef, snap => {
+    const raw = snap.val() || {};
+    // Aggregate by text
+    const agg = {};
+    Object.values(raw).forEach(({text}) => {
+      if (!text) return;
+      const t = text.trim();
+      agg[t] = (agg[t] || 0) + 1;
+    });
+    words = agg;
+    renderCloud();
+    renderWordList();
+  });
+}
+
+window._db = () => db;
+window._ref = ref;
+window._remove = remove;
+window._get = get;
+
+// ── Word list ──────────────────────────────────────────
+function renderWordList() {
+  const el = document.getElementById("wordList");
+  const entries = Object.entries(words).sort((a,b) => b[1]-a[1]);
+  document.getElementById("wordCount").textContent = `${entries.length} 個詞`;
+
+  if (entries.length === 0) {
+    el.innerHTML = '<p style="color:#555;font-size:.82rem;text-align:center;padding:10px">尚無詞語</p>';
+    return;
+  }
+  el.innerHTML = entries.map(([text, count]) => `
+    <div class="word-item">
+      <span>${text}</span>
+      <span class="wt">${count}次</span>
+      <span class="del-w" data-text="${text}">✕</span>
+    </div>
+  `).join("");
+  el.querySelectorAll(".del-w").forEach(btn => {
+    btn.onclick = () => deleteWord(btn.dataset.text);
+  });
+}
+
+async function deleteWord(text) {
+  if (!db) { toast("請先設定 Firebase"); return; }
+  const wordsRef = ref(db, "words");
+  const snap = await get(wordsRef);
+  if (!snap.val()) return;
+  const updates = [];
+  snap.forEach(child => {
+    if (child.val().text === text)
+      updates.push(remove(ref(db, "words/" + child.key)));
+  });
+  await Promise.all(updates);
+}
+
+window.addWordManual = async function() {
+  const inp = document.getElementById("editInput");
+  const text = inp.value.trim();
+  if (!text) return;
+  if (!db) { toast("請先設定 Firebase"); return; }
+  await push(ref(db, "words"), { text, time: Date.now() });
+  inp.value = "";
+  toast(`已加入「${text}」`);
+};
+
+document.getElementById("editInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") window.addWordManual();
+});
+
+window.clearCloud = async function() {
+  if (!db) { toast("請先設定 Firebase"); return; }
+  await remove(ref(db, "words"));
+  closeModal("newModal");
+  toast("已清除所有詞語");
+};
+
+// ── Palette ────────────────────────────────────────────
+const palEl = document.getElementById("palette");
+PALETTES.forEach((pal, idx) => {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;gap:3px;cursor:pointer;padding:3px;border-radius:6px;border:2px solid transparent;";
+  wrap.dataset.idx = idx;
+  pal.forEach(c => {
+    const s = document.createElement("div");
+    s.style.cssText = `width:14px;height:22px;background:${c};border-radius:3px;`;
+    wrap.appendChild(s);
+  });
+  wrap.onclick = () => {
+    document.querySelectorAll("#palette [data-idx]").forEach(w => w.style.borderColor="transparent");
+    wrap.style.borderColor = "#667eea";
+    currentPalette = idx;
+    renderCloud();
+  };
+  palEl.appendChild(wrap);
+});
+// active first
+palEl.querySelector("[data-idx='0']").style.borderColor = "#667eea";
+
+// ── Shapes ─────────────────────────────────────────────
+const shapeEl = document.getElementById("shapeGrid");
+SHAPES.forEach(s => {
+  const btn = document.createElement("button");
+  btn.className = "shape-btn" + (s === currentShape ? " active" : "");
+  btn.textContent = SHAPE_LABELS[s];
+  btn.onclick = () => {
+    document.querySelectorAll(".shape-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentShape = s;
+    renderCloud();
+  };
+  shapeEl.appendChild(btn);
+});
+
+// ── Cloud Render ───────────────────────────────────────
+let renderTimer = null;
+function renderCloud() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(_doRender, 120);
+}
+
+function _doRender() {
+  const svg = document.getElementById("cloudCanvas");
+  const W = svg.clientWidth || 800;
+  const H = svg.clientHeight || 600;
+
+  const entries = Object.entries(words);
+  if (entries.length === 0) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle"
+      fill="#333" font-size="18" font-family="Microsoft JhengHei">
+      等待詞語加入…</text>`;
+    return;
+  }
+
+  const maxCnt = Math.max(...entries.map(e => e[1]));
+  const minCnt = Math.min(...entries.map(e => e[1]));
+  const sizeScale = d3.scaleLinear()
+    .domain([minCnt, maxCnt])
+    .range([fontScale * 0.4, fontScale]);
+
+  const layout = d3.layout.cloud()
+    .size([W, H])
+    .words(entries.map(([text, count]) => ({
+      text, size: sizeScale(count) * scale,
+      rotate: scatterMode ? (Math.random() > .5 ? 0 : 90) : 0
+    })))
+    .padding(scatterMode ? 18 : 5)
+    .spiral(currentShape === "circle" || currentShape === "cloud" ? "archimedean" : "rectangular")
+    .rotate(() => scatterMode ? (~~(Math.random() * 3) - 1) * 30 : 0)
+    .font("Microsoft JhengHei, sans-serif")
+    .fontSize(d => d.size)
+    .on("end", draw);
+
+  // Apply shape mask
+  if (currentShape === "circle" || currentShape === "cloud" || currentShape === "heart" || currentShape === "star") {
+    layout.spiral("archimedean");
+  } else {
+    layout.spiral("rectangular");
+  }
+
+  layout.start();
+
+  function draw(cloudWords) {
+    const pal = PALETTES[currentPalette];
+    svg.innerHTML = "";
+
+    // Background shape
+    const ns = "http://www.w3.org/2000/svg";
+    const defs = document.createElementNS(ns, "defs");
+    const grad = document.createElementNS(ns, "radialGradient");
+    grad.id = "bgGrad";
+    const s1 = document.createElementNS(ns, "stop");
+    s1.setAttribute("offset","0%"); s1.setAttribute("stop-color", pal[0] + "22");
+    const s2 = document.createElementNS(ns, "stop");
+    s2.setAttribute("offset","100%"); s2.setAttribute("stop-color", "transparent");
+    grad.appendChild(s1); grad.appendChild(s2);
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    const g = document.createElementNS(ns, "g");
+    g.setAttribute("transform", `translate(${W/2},${H/2})`);
+
+    cloudWords.forEach((w, i) => {
+      const text = document.createElementNS(ns, "text");
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("transform", `translate(${w.x},${w.y}) rotate(${w.rotate})`);
+      text.setAttribute("font-size", w.size + "px");
+      text.setAttribute("font-family", w.font);
+      text.setAttribute("fill", pal[i % pal.length]);
+      text.setAttribute("fill-opacity", "0.92");
+      text.style.cursor = "default";
+      text.style.transition = "opacity .2s";
+      text.textContent = w.text;
+      // hover
+      text.addEventListener("mouseenter", () => text.setAttribute("fill-opacity","1"));
+      text.addEventListener("mouseleave", () => text.setAttribute("fill-opacity","0.92"));
+      g.appendChild(text);
+    });
+    svg.appendChild(g);
+
+    // Animate in
+    g.style.opacity = "0";
+    g.style.transition = "opacity .4s";
+    requestAnimationFrame(() => { g.style.opacity = "1"; });
+  }
+}
+
+// ── Controls ───────────────────────────────────────────
+document.getElementById("btnZoomIn").onclick  = () => { scale = Math.min(scale + 0.15, 3); renderCloud(); };
+document.getElementById("btnZoomOut").onclick = () => { scale = Math.max(scale - 0.15, 0.3); renderCloud(); };
+document.getElementById("btnZoomRst").onclick = () => { scale = 1; renderCloud(); };
+
+document.getElementById("btnGather").onclick  = () => { scatterMode = false; renderCloud(); };
+document.getElementById("btnScatter").onclick = () => { scatterMode = true;  renderCloud(); };
+
+document.getElementById("fontRange").oninput = function() {
+  fontScale = +this.value; renderCloud();
+};
+
+// ── Download ───────────────────────────────────────────
+document.getElementById("btnDownload").onclick = async () => {
+  const stage = document.getElementById("cloudStage");
+  const canvas = await html2canvas(stage, { backgroundColor: "#1a1a2e", scale: 2 });
+  const a = document.createElement("a");
+  a.download = "wordcloud_" + Date.now() + ".png";
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+  toast("✅ 已下載！");
+};
+
+// ── Share ──────────────────────────────────────────────
+document.getElementById("btnShare").onclick = () => {
+  const url = location.href;
+  if (navigator.share) {
+    navigator.share({ title: "文字雲", url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => toast("🔗 連結已複製！"));
+  }
+};
+
+// ── Edit / New ─────────────────────────────────────────
+document.getElementById("btnEdit").onclick = () => openModal("editModal");
+document.getElementById("btnNew").onclick  = () => openModal("newModal");
+
+// ── QR Code ───────────────────────────────────────────
+window.refreshQR = function() {
+  const qrEl   = document.getElementById("qrcode");
+  const qrText = document.getElementById("qrUrl");
+  qrEl.innerHTML = "";
+  const savedUrl = localStorage.getItem("inputPageUrl");
+  if (!savedUrl) {
+    qrText.textContent = "請先在 ⚙️ Firebase 設定留言頁網址";
+    return;
+  }
+  qrText.textContent = savedUrl;
+  new QRCode(qrEl, {
+    text: savedUrl,
+    width: 160, height: 160,
+    colorDark: "#222", colorLight: "#fff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+};
+
+// ── Firebase Modal ─────────────────────────────────────
+document.getElementById("btnFirebase").onclick = () => {
+  // 只回填非敏感欄位，API Key 每次重填
+  const saved = localStorage.getItem("fbConfig");
+  if (saved) {
+    try {
+      const c = JSON.parse(saved);
+      ["authDomain","databaseURL","projectId","appId"].forEach(k => {
+        const el = document.getElementById("fb_" + k);
+        if (el) el.value = c[k] || "";
+      });
+    } catch(e) {}
+  }
+  const savedUrl = localStorage.getItem("inputPageUrl");
+  if (savedUrl) document.getElementById("fb_inputUrl").value = savedUrl;
+  openModal("firebaseModal");
+};
+
+window.saveFirebaseConfig = function() {
+  const cfg = {
+    apiKey:            document.getElementById("fb_apiKey").value.trim(),
+    authDomain:        document.getElementById("fb_authDomain").value.trim(),
+    databaseURL:       document.getElementById("fb_databaseURL").value.trim(),
+    projectId:         document.getElementById("fb_projectId").value.trim(),
+    appId:             document.getElementById("fb_appId").value.trim(),
+  };
+  const inputUrl = document.getElementById("fb_inputUrl").value.trim();
+  if (!cfg.apiKey || !cfg.databaseURL) { toast("請填寫必要欄位"); return; }
+  if (inputUrl) localStorage.setItem("inputPageUrl", inputUrl);
+  const ok = initFirebase(cfg);
+  if (ok) { refreshQR(); closeModal("firebaseModal"); }
+};
+
+// ── Modal helpers ──────────────────────────────────────
+window.openModal  = id => document.getElementById(id).style.display = "flex";
+window.closeModal = id => document.getElementById(id).style.display = "none";
+document.querySelectorAll(".modal-bg").forEach(bg => {
+  bg.addEventListener("click", e => { if (e.target === bg) bg.style.display = "none"; });
+});
+
+// ── Toast ──────────────────────────────────────────────
+let toastTimer;
+window.toast = function(msg, dur = 2200) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), dur);
+};
+
+// ── Init ───────────────────────────────────────────────
+refreshQR();
+renderCloud();
+
+// Auto-load saved Firebase config（需每次手動連線，API Key 不預存）
+const savedCfg = localStorage.getItem("fbConfig");
+if (savedCfg) {
+  // 有先前的非敏感設定，但仍需使用者重新輸入 API Key 才能連線
+  words = {"歡迎":3,"文字雲":2,"試試看":1,"掃碼":2,"留言":1};
+  renderCloud();
+  renderWordList();
+  toast("💡 請點右上角 ⚙️ Firebase 輸入 API Key 連線", 5000);
+} else {
+  words = {"歡迎":3,"文字雲":2,"試試看":1,"掃碼":2,"留言":1};
+  renderCloud();
+  renderWordList();
+  toast("💡 請點右上角 ⚙️ Firebase 進行設定", 5000);
+}
+
+// Resize re-render
+window.addEventListener("resize", () => renderCloud());
+
+</script>
+</body>
+</html>
