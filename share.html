@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文字雲圖片</title>
+  <style>
+    :root {
+      --bg:     #07192e;
+      --bg2:    #0d2645;
+      --panel:  #0a1f38;
+      --accent: #4a9eff;
+      --text:   #d0e8ff;
+      --muted:  #4a7a9b;
+      --border: #1a3a5c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+      color: var(--text);
+      font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px 16px;
+    }
+    .card {
+      background: rgba(10,31,56,.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 24px;
+      width: 100%; max-width: 520px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    }
+    h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { font-size: .85rem; color: var(--muted); margin-bottom: 20px; }
+
+    #imgWrap {
+      width: 100%; border-radius: 10px; overflow: hidden;
+      margin-bottom: 18px; background: var(--bg);
+      min-height: 160px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #imgWrap img {
+      width: 100%; height: auto; display: block;
+      border-radius: 10px;
+    }
+
+    .status {
+      font-size: .9rem; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-save {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 13px 32px;
+      background: var(--accent);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: #2a7be0; }
+    .error { color: #ff7070; font-size: .9rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>☁ 文字雲圖片</h1>
+  <p class="subtitle">長按圖片或點下方按鈕儲存</p>
+
+  <div id="imgWrap">
+    <div class="status" id="status">
+      <div class="spinner"></div>
+      <span>載入圖片中…</span>
+    </div>
+  </div>
+
+  <div id="actions" style="display:none">
+    <a id="btnSave" class="btn-save" download="wordcloud.jpg">⬇️ 儲存圖片</a>
+  </div>
+  <p class="error" id="errMsg"></p>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDCx6xPdDT4xMTHsfeU_0B_1b8-vUVM42I",
+    authDomain:        "wordcloud-e0a71.firebaseapp.com",
+    databaseURL:       "https://wordcloud-e0a71-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "wordcloud-e0a71",
+    storageBucket:     "wordcloud-e0a71.firebasestorage.app",
+    messagingSenderId: "825747699881",
+    appId:             "1:825747699881:web:d47986c54e28135a56d1b8"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const db  = getDatabase(app);
+
+  const id = new URLSearchParams(location.search).get("id");
+
+  if (!id) {
+    showError("找不到圖片 ID，請重新掃描 QR Code。");
+  } else {
+    try {
+      const snap = await get(ref(db, "shares/" + id));
+      if (!snap.exists()) {
+        showError("圖片不存在或已過期，請請老師重新產生 QR Code。");
+      } else {
+        const { img } = snap.val();
+        const imgEl = document.createElement("img");
+        imgEl.src = img;
+        imgEl.alt = "文字雲";
+        document.getElementById("imgWrap").innerHTML = "";
+        document.getElementById("imgWrap").appendChild(imgEl);
+
+        const btn = document.getElementById("btnSave");
+        btn.href = img;
+        document.getElementById("actions").style.display = "block";
+      }
+    } catch(e) {
+      showError("載入失敗：" + e.message);
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById("imgWrap").innerHTML =
+      `<span style="color:#4a7a9b;font-size:.85rem;padding:20px">⚠️ ${msg}</span>`;
+    document.getElementById("errMsg").textContent = msg;
+  }
+</script>
+</body>
+</html>

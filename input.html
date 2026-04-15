@@ -9,174 +9,132 @@
   <title>文字雲留言</title>
   <style>
     :root {
-      --accent: #667eea;
-      --accent2: #764ba2;
-      --radius: 14px;
-      /* Safe area for notch phones */
+      --bg:      #07192e;
+      --bg2:     #0d2645;
+      --panel:   #0a1f38;
+      --accent:  #4a9eff;
+      --accent2: #1a6fd4;
+      --text:    #d0e8ff;
+      --border:  #1a3a5c;
+      --muted:   #4a7a9b;
       --safe-top:    env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     body {
-      min-height: 100dvh;           /* dynamic viewport height — handles mobile browser chrome */
-      background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
-      font-family: 'Segoe UI', 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100dvh;
+      background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+      color: var(--text);
+      font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
       display: flex; flex-direction: column;
-      align-items: center;
-      padding: calc(var(--safe-top) + 20px) 16px calc(var(--safe-bottom) + 20px);
+      align-items: center; justify-content: center;
+      padding: calc(var(--safe-top) + 24px) 20px calc(var(--safe-bottom) + 24px);
     }
 
-    /* ── Card ── */
     .card {
-      background: #fff;
-      border-radius: 22px;
-      padding: 28px 22px 24px;
-      width: 100%;
-      max-width: 480px;
-      box-shadow: 0 24px 64px rgba(0,0,0,.28);
+      background: rgba(10,31,56,.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 26px 28px;
+      width: 100%; max-width: 440px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.45);
     }
 
-    /* ── Header ── */
-    .header { text-align: center; margin-bottom: 22px; }
-    .header .emoji { font-size: 2.6rem; line-height: 1; display: block; margin-bottom: 6px; }
-    .header h1 { font-size: clamp(1.25rem, 5vw, 1.6rem); color: #222; font-weight: 700; }
-    .header p  { color: #888; font-size: clamp(0.82rem, 3.5vw, 0.95rem); margin-top: 4px; }
-
-    /* ── Input row ── */
-    .input-wrap {
-      display: flex; gap: 8px; margin-bottom: 10px;
+    /* Header */
+    .header { text-align: center; margin-bottom: 28px; }
+    .header .icon {
+      font-size: 2.4rem; line-height: 1;
+      display: block; margin-bottom: 8px;
     }
+    .header h1 {
+      font-size: clamp(1.3rem, 5vw, 1.6rem);
+      font-weight: 700; color: #fff;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: clamp(.82rem, 3.5vw, .92rem);
+      margin-top: 5px;
+    }
+
+    /* Input */
     input[type="text"] {
-      flex: 1;
-      padding: 14px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: var(--radius);
-      font-size: clamp(0.95rem, 4vw, 1.05rem);
+      width: 100%;
+      padding: 15px 18px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: #fff;
+      font-size: clamp(1rem, 4vw, 1.1rem);
       outline: none;
-      color: #222;
-      transition: border-color .2s;
-      /* Prevent iOS zoom on focus (font-size >= 16px) */
+      transition: border-color .18s;
       -webkit-appearance: none;
+      margin-bottom: 14px;
     }
+    input[type="text"]::placeholder { color: var(--muted); }
     input[type="text"]:focus { border-color: var(--accent); }
 
-    .btn-add {
-      padding: 14px 18px;
-      background: var(--accent); color: #fff;
-      border: none; border-radius: var(--radius);
-      font-size: 1rem; font-weight: 700;
-      cursor: pointer; transition: background .18s;
-      white-space: nowrap; min-height: 50px;
-    }
-    .btn-add:active { background: #5568d4; transform: scale(.97); }
-
-    /* ── Pending tags ── */
-    .pending-wrap {
-      min-height: 44px; margin-bottom: 6px;
-      display: flex; flex-wrap: wrap; gap: 7px;
-      align-items: flex-start;
-    }
-    .pending-tag {
-      background: #eef0ff; color: var(--accent);
-      border-radius: 30px; padding: 7px 12px 7px 14px;
-      font-size: clamp(0.82rem, 3.5vw, 0.9rem);
-      display: flex; align-items: center; gap: 6px;
-      animation: popIn .18s ease;
-    }
-    @keyframes popIn {
-      from { transform: scale(.7); opacity: 0; }
-      to   { transform: scale(1);  opacity: 1; }
-    }
-    .pending-tag .del {
-      cursor: pointer; color: #a0a4d0; font-size: 0.85rem;
-      padding: 2px; border-radius: 50%;
-      transition: color .15s, background .15s;
-    }
-    .pending-tag .del:hover { color: #e55; background: #ffe0e0; }
-
-    .counter {
-      font-size: 0.78rem; color: #bbb;
-      text-align: right; margin-bottom: 16px;
-    }
-
-    /* ── Submit ── */
+    /* Submit button */
     .btn-submit {
       width: 100%;
-      padding: 17px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      color: #fff; border: none; border-radius: var(--radius);
-      font-size: clamp(1rem, 4.5vw, 1.15rem); font-weight: 700;
-      cursor: pointer; transition: opacity .2s, transform .15s;
-      letter-spacing: .02em;
-      min-height: 56px; /* large touch target */
+      padding: 16px;
+      background: var(--accent2);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: clamp(1rem, 4.5vw, 1.1rem); font-weight: 700;
+      cursor: pointer; transition: background .15s, transform .12s;
+      min-height: 54px; letter-spacing: .02em;
     }
-    .btn-submit:not(:disabled):active { opacity: .88; transform: scale(.98); }
+    .btn-submit:not(:disabled):active {
+      background: #1558b0; transform: scale(.98);
+    }
     .btn-submit:disabled { opacity: .38; cursor: default; }
 
-    /* ── Status ── */
+    /* Status */
     #status {
-      margin-top: 14px;
-      font-size: clamp(0.85rem, 3.5vw, 0.95rem);
-      text-align: center; min-height: 24px; color: #555;
+      margin-top: 14px; min-height: 22px;
+      font-size: clamp(.82rem, 3.5vw, .9rem);
+      text-align: center; color: var(--muted);
     }
-    .success { color: #27ae60 !important; font-weight: 600; }
-    .error   { color: #e74c3c !important; }
+    .success { color: #4ecf8a !important; font-weight: 600; }
+    .error   { color: #ff7070 !important; }
 
-    /* ── Tablet breakpoint ── */
-    @media (min-width: 600px) {
-      body { padding-top: 40px; }
-      .card { padding: 40px 36px 32px; }
-      .tag  { font-size: 0.95rem; }
+    @media (min-width: 480px) {
+      .card { padding: 40px 36px 34px; }
     }
   </style>
 </head>
 <body>
 <div class="card">
-
   <div class="header">
-    <span class="emoji">✏️</span>
+    <span class="icon">☁</span>
     <h1>分享你的想法</h1>
-    <p>輸入詞語，一起打造文字雲！</p>
+    <p>輸入一個詞語，加入文字雲！</p>
   </div>
 
-  <!-- Manual input -->
-  <div class="input-wrap">
-    <input
-      type="text"
-      id="wordInput"
-      placeholder="輸入詞語…"
-      maxlength="20"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="none"
-      spellcheck="false"
-      enterkeyhint="done"
-    />
-    <button class="btn-add" onclick="addPending()">加入</button>
-  </div>
+  <input
+    type="text"
+    id="wordInput"
+    placeholder="輸入詞語…"
+    maxlength="20"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="none"
+    spellcheck="false"
+    enterkeyhint="send"
+  />
 
-  <!-- Pending -->
-  <div class="pending-wrap" id="pendingList"></div>
-  <p class="counter" id="counter">0 / 5 個詞</p>
-
-  <button class="btn-submit" id="submitBtn" onclick="submitWords()" disabled>
+  <button class="btn-submit" id="submitBtn" onclick="submitWord()">
     送出到文字雲 🚀
   </button>
   <p id="status"></p>
-
 </div>
 
-<!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  // ============================================================
-  // 填入你的 Firebase 設定（與 index.html 相同）
-  // ============================================================
-  const firebaseConfig = {
+  const FIREBASE_CONFIG = {
     apiKey:            "AIzaSyDCx6xPdDT4xMTHsfeU_0B_1b8-vUVM42I",
     authDomain:        "wordcloud-e0a71.firebaseapp.com",
     databaseURL:       "https://wordcloud-e0a71-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -185,85 +143,46 @@
     messagingSenderId: "825747699881",
     appId:             "1:825747699881:web:d47986c54e28135a56d1b8"
   };
-  // ============================================================
 
-  const app = initializeApp(firebaseConfig);
+  const app = initializeApp(FIREBASE_CONFIG);
   const db  = getDatabase(app);
 
-  let pending = [];
+  const inp = document.getElementById("wordInput");
+  const btn = document.getElementById("submitBtn");
+  const st  = document.getElementById("status");
 
-  function refreshPending() {
-    const list  = document.getElementById("pendingList");
-    const count = document.getElementById("counter");
-    const btn   = document.getElementById("submitBtn");
+  let sending = false;
 
-    list.innerHTML = "";
-    pending.forEach((w, i) => {
-      const d = document.createElement("span");
-      d.className = "pending-tag";
-      d.innerHTML = `${w}<span class="del" data-i="${i}">✕</span>`;
-      d.querySelector(".del").addEventListener("pointerdown", e => {
-        e.preventDefault();
-        pending.splice(i, 1);
-        refreshPending();
-      });
-      list.appendChild(d);
-    });
+  window.submitWord = async function() {
+    const text = inp.value.trim();
+    if (!text || sending) return;
 
-    count.textContent = `${pending.length} / 5 個詞`;
-    btn.disabled = pending.length === 0;
-  }
-
-  function addWord(w) {
-    w = w.trim();
-    if (!w || pending.length >= 5) return;
-    if (pending.includes(w)) {
-      // toggle off
-      pending = pending.filter(x => x !== w);
-    } else {
-      pending.push(w);
-    }
-    refreshPending();
-  }
-
-  window.addPending = function() {
-    const inp = document.getElementById("wordInput");
-    addWord(inp.value);
-    inp.value = "";
-    inp.focus();
-  };
-
-  document.getElementById("wordInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); window.addPending(); }
-  });
-
-  window.submitWords = async function() {
-    if (pending.length === 0) return;
-    const btn = document.getElementById("submitBtn");
-    const st  = document.getElementById("status");
-
+    sending = true;
     btn.disabled = true;
     st.className = "";
     st.textContent = "送出中…";
 
     try {
-      const wordsRef = ref(db, "words");
-      for (const w of pending) {
-        await push(wordsRef, { text: w, time: Date.now() });
-      }
+      await push(ref(db, "words"), { text, time: Date.now() });
       st.className  = "success";
-      st.textContent = "✅ 送出成功！感謝你的參與 🎉";
-      pending = [];
-      refreshPending();
+      st.textContent = `✅「${text}」已送出！`;
+      inp.value = "";
+      inp.focus();
     } catch(e) {
       st.className  = "error";
       st.textContent = "❌ 送出失敗，請確認網路連線";
-      btn.disabled  = false;
       console.error(e);
+    } finally {
+      sending = false;
+      btn.disabled = false;
     }
   };
 
-  refreshPending();
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); window.submitWord(); }
+  });
+
+  inp.focus();
 </script>
 </body>
 </html>
