@@ -202,12 +202,12 @@
   <!-- 回答次數 -->
   <span class="label">次數</span>
   <select class="ctrl-select" id="maxVotesSelect">
+    <option value="0">不限</option>
     <option value="1">1 次</option>
     <option value="2">2 次</option>
     <option value="3">3 次</option>
     <option value="5">5 次</option>
     <option value="10">10 次</option>
-    <option value="0">不限</option>
   </select>
   <div class="sep"></div>
 
@@ -679,7 +679,7 @@ window.toast = function(msg, dur=2200) {
 // ── Init ───────────────────────────────────────────────
 if (!localStorage.getItem("inputPageUrl"))
   localStorage.setItem("inputPageUrl","https://yingertw-arch.github.io/wordcloud/input.html");
-get(ref(db,"settings/maxVotes")).then(s => { if(!s.exists()) set(ref(db,"settings/maxVotes"),1); });
+get(ref(db,"settings/maxVotes")).then(s => { if(!s.exists()) set(ref(db,"settings/maxVotes"),0); });
 renderCloud();
 window.addEventListener("resize", () => renderCloud());
 
