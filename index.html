@@ -236,7 +236,7 @@
   <button class="btn btn-danger"  id="btnNew">🔄 新文字雲</button>
 
   <!-- Firebase config -->
-  <button class="btn btn-ghost" id="btnFirebase" style="margin-left:auto">⚙️ Firebase</button>
+  <button class="btn btn-ghost" id="btnFirebase" style="margin-left:auto">📱 QR 設定</button>
 </div>
 
 <!-- ══════════════ MAIN ══════════════ -->
@@ -296,20 +296,18 @@
   </div>
 </div>
 
-<!-- Firebase config modal -->
+<!-- QR URL modal -->
 <div class="modal-bg" id="firebaseModal">
-  <div class="modal" style="width:400px">
-    <h2>⚙️ Firebase 連線設定</h2>
-    <div class="config-field"><label>API Key</label><input id="fb_apiKey" placeholder="AIza…" type="password" autocomplete="off" /></div>
-    <div class="config-field"><label>Auth Domain</label><input id="fb_authDomain" placeholder="your-app.firebaseapp.com" /></div>
-    <div class="config-field"><label>Database URL</label><input id="fb_databaseURL" placeholder="https://your-app-default-rtdb.firebaseio.com" /></div>
-    <div class="config-field"><label>Project ID</label><input id="fb_projectId" placeholder="your-app" /></div>
-    <div class="config-field"><label>App ID</label><input id="fb_appId" placeholder="1:xxx:web:xxx" /></div>
-    <hr style="border-color:#2a2a4a;margin:12px 0"/>
-    <div class="config-field"><label>📱 留言頁網址（供 QR Code 使用）</label><input id="fb_inputUrl" placeholder="https://你的網域/input.html" /></div>
-    <div class="modal-btns">
+  <div class="modal" style="width:380px">
+    <h2>📱 QR Code 網址設定</h2>
+    <div class="config-field">
+      <label>留言頁網址</label>
+      <input id="fb_inputUrl" placeholder="https://你的網域/input.html" />
+    </div>
+    <p style="font-size:.78rem;color:#666;margin-top:4px">掃描 QR Code 後開啟的頁面網址</p>
+    <div class="modal-btns" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeModal('firebaseModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveFirebaseConfig()">連線</button>
+      <button class="btn btn-primary" onclick="saveFirebaseConfig()">儲存</button>
     </div>
   </div>
 </div>
@@ -638,37 +636,20 @@ window.refreshQR = function() {
   });
 };
 
-// ── Firebase Modal ─────────────────────────────────────
+// ── QR URL Modal ───────────────────────────────────────
 document.getElementById("btnFirebase").onclick = () => {
-  // 只回填非敏感欄位，API Key 每次重填
-  const saved = localStorage.getItem("fbConfig");
-  if (saved) {
-    try {
-      const c = JSON.parse(saved);
-      ["authDomain","databaseURL","projectId","appId"].forEach(k => {
-        const el = document.getElementById("fb_" + k);
-        if (el) el.value = c[k] || "";
-      });
-    } catch(e) {}
-  }
   const savedUrl = localStorage.getItem("inputPageUrl");
   if (savedUrl) document.getElementById("fb_inputUrl").value = savedUrl;
   openModal("firebaseModal");
 };
 
 window.saveFirebaseConfig = function() {
-  const cfg = {
-    apiKey:            document.getElementById("fb_apiKey").value.trim(),
-    authDomain:        document.getElementById("fb_authDomain").value.trim(),
-    databaseURL:       document.getElementById("fb_databaseURL").value.trim(),
-    projectId:         document.getElementById("fb_projectId").value.trim(),
-    appId:             document.getElementById("fb_appId").value.trim(),
-  };
   const inputUrl = document.getElementById("fb_inputUrl").value.trim();
-  if (!cfg.apiKey || !cfg.databaseURL) { toast("請填寫必要欄位"); return; }
-  if (inputUrl) localStorage.setItem("inputPageUrl", inputUrl);
-  const ok = initFirebase(cfg);
-  if (ok) { refreshQR(); closeModal("firebaseModal"); }
+  if (!inputUrl) { toast("請填寫留言頁網址"); return; }
+  localStorage.setItem("inputPageUrl", inputUrl);
+  refreshQR();
+  closeModal("firebaseModal");
+  toast("✅ QR Code 已更新");
 };
 
 // ── Modal helpers ──────────────────────────────────────
@@ -687,24 +668,24 @@ window.toast = function(msg, dur = 2200) {
   toastTimer = setTimeout(() => el.classList.remove("show"), dur);
 };
 
-// ── Init ───────────────────────────────────────────────
-refreshQR();
-renderCloud();
-
-// Auto-load saved Firebase config（需每次手動連線，API Key 不預存）
-const savedCfg = localStorage.getItem("fbConfig");
-if (savedCfg) {
-  // 有先前的非敏感設定，但仍需使用者重新輸入 API Key 才能連線
-  words = {"歡迎":3,"文字雲":2,"試試看":1,"掃碼":2,"留言":1};
-  renderCloud();
-  renderWordList();
-  toast("💡 請點右上角 ⚙️ Firebase 輸入 API Key 連線", 5000);
-} else {
-  words = {"歡迎":3,"文字雲":2,"試試看":1,"掃碼":2,"留言":1};
-  renderCloud();
-  renderWordList();
-  toast("💡 請點右上角 ⚙️ Firebase 進行設定", 5000);
+// ── 內建 Firebase 設定（開啟即自動連線）──────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDCx6xPdDT4xMTHsfeU_0B_1b8-vUVM42I",
+  authDomain:        "wordcloud-e0a71.firebaseapp.com",
+  databaseURL:       "https://wordcloud-e0a71-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "wordcloud-e0a71",
+  storageBucket:     "wordcloud-e0a71.firebasestorage.app",
+  messagingSenderId: "825747699881",
+  appId:             "1:825747699881:web:d47986c54e28135a56d1b8"
+};
+// QR Code 預設指向 GitHub Pages 上的 input.html
+if (!localStorage.getItem("inputPageUrl")) {
+  localStorage.setItem("inputPageUrl", "https://yingertw-arch.github.io/wordcloud/input.html");
 }
+
+// ── Init ───────────────────────────────────────────────
+initFirebase(FIREBASE_CONFIG);
+refreshQR();
 
 // Resize re-render
 window.addEventListener("resize", () => renderCloud());
